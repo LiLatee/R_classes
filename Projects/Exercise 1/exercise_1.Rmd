@@ -1,0 +1,90 @@
+---
+title: "Mój pierwszy raport"
+author: "Marcin Hradowicz"
+date: "23 10 2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(EDAWR)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+```
+
+## Wczytanie danych
+```{r load_data, cache=TRUE, results=TRUE}
+devtools::install_github("rstudio/EDAWR")
+#head(tb)
+mydf <- tb
+knitr::kable(head(mydf))
+
+```
+
+## Podsumowanie danych w zbiorze
+```{r data_info}
+sprintf("Liczba wierszy: %d", nrow(mydf))
+sprintf("Liczba kolumn: %d", ncol(mydf))
+
+good <- complete.cases(mydf)
+n_of_rows_without_NA <- nrow(mydf[good, ])
+sprintf("Liczba wierszy bez wartosci NA: %d", n_of_rows_without_NA)
+knitr::kable(summary(mydf))
+
+```
+
+## Liczba zachorowan z podzialem na plec
+```{r number_of_diseases, cache=TRUE}
+mydf <- mutate(mydf, sum=adult+child+elderly)
+sex_number_df = group_by(mydf, sex) %>% summarize(sum=sum(sum, na.rm = TRUE))
+bar_plot<-ggplot(data=sex_number_df, aes(x=sex, y=sum)) + 
+  geom_bar(stat="identity", fill="steelblue") + 
+  geom_text(aes(label=sum), vjust=-0.3, size=3.5)
+bar_plot
+   
+```
+
+## Wykres zachorowan w ciagu kolejnych lat
+```{r linear_plot}
+tbt <- group_by(mydf, year) %>% 
+  summarize(sum_child=sum(child, na.rm = TRUE), sum_adult=sum(adult, na.rm = TRUE), sum_elderly=sum(elderly, na.rm = TRUE))
+
+
+temp <- tbt %>%
+  select(year, sum_child, sum_adult, sum_elderly) %>%
+  gather(key="age", value="sum", -year)
+head(temp)
+
+#ggplot(data = tbt, aes(x = year)) +
+ # geom_line(aes(y=sum_child), color="red") +
+  #geom_line(aes(y=sum_adult), color="blue") +
+  #geom_line(aes(y=sum_elderly), color="orange")
+
+ggplot(temp, aes(x = year, y = sum)) + 
+  geom_line(aes(color = age, linetype = age)) + 
+  scale_color_manual(values = c("red", "blue", "orange"))
+
+```
+
+## Wykres zachorowan w ciagu kolejnych lat w Polsce
+```{r linear_plot_country}
+tbt <- group_by(mydf, country, year) %>% 
+  summarize(sum=sum(sum))
+tbt[is.na(tbt)] <- 0
+tbt <- filter(tbt, country=="Poland")
+
+
+ggplot(data = tbt, aes(x = year)) +
+  geom_line(aes(y=sum), color="red")
+
+
+```
+
+
