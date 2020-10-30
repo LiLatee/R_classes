@@ -1,28 +1,33 @@
 ---
-title: "Mój pierwszy raport"
+title: "Zadanie 1"
 author: "Marcin Hradowicz"
-date: "23 10 2020"
+date: "23.10.2020"
 output: 
   html_document:
     toc: true
     toc_float: true
 ---
 
+## Biblioteki
+```{r install_packages, cache=TRUE, message=FALSE, warning=FALSE, results=FALSE}
+devtools::install_github("rstudio/EDAWR")
+install.packages("plotly",repos = "http://cran.us.r-project.org")
+```
 
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+
+```{r setup, cache=TRUE, message=FALSE, warning=FALSE, results=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 
 library(EDAWR)
 library(dplyr)
 library(ggplot2)
+library(plotly)
 library(tidyverse)
 ```
 
 ## Wczytanie danych
 ```{r load_data, cache=TRUE, results=TRUE}
-devtools::install_github("rstudio/EDAWR")
-#head(tb)
 mydf <- tb
 knitr::kable(head(mydf))
 
@@ -43,10 +48,15 @@ knitr::kable(summary(mydf))
 ## Liczba zachorowan z podzialem na plec
 ```{r number_of_diseases, cache=TRUE}
 mydf <- mutate(mydf, sum=adult+child+elderly)
+
 sex_number_df = group_by(mydf, sex) %>% summarize(sum=sum(sum, na.rm = TRUE))
-bar_plot<-ggplot(data=sex_number_df, aes(x=sex, y=sum)) + 
-  geom_bar(stat="identity", fill="steelblue") + 
-  geom_text(aes(label=sum), vjust=-0.3, size=3.5)
+
+bar_plot<-ggplot(data=sex_number_df, aes(x=sex, y=sum/1000000, fill=unique(tb[["sex"]]))) + 
+  geom_bar(stat="identity") + 
+  geom_text(aes(label=sum), vjust=1.6, size=3.5, color='white') +
+  labs(x="Plec", y="Suma zachorowan [mln]", fill="Plec") +
+  theme_minimal()
+
 bar_plot
    
 ```
@@ -55,7 +65,6 @@ bar_plot
 ```{r linear_plot}
 tbt <- group_by(mydf, year) %>% 
   summarize(sum_child=sum(child, na.rm = TRUE), sum_adult=sum(adult, na.rm = TRUE), sum_elderly=sum(elderly, na.rm = TRUE))
-
 
 temp <- tbt %>%
   select(year, sum_child, sum_adult, sum_elderly) %>%
@@ -67,24 +76,29 @@ head(temp)
   #geom_line(aes(y=sum_adult), color="blue") +
   #geom_line(aes(y=sum_elderly), color="orange")
 
-ggplot(temp, aes(x = year, y = sum)) + 
-  geom_line(aes(color = age, linetype = age)) + 
-  scale_color_manual(values = c("red", "blue", "orange"))
-
+ggplot(temp, aes(x = year, y = sum/1000000)) + 
+  geom_line(aes(color = age),) + 
+  geom_point(aes(color = age)) +
+  scale_color_discrete(name = "Wiek", labels = c("Dorosli", "Dzieci", "Osoby starsze"))+
+  labs(x="Rok", y="Suma zachorowan [mln]", color="Wiek") +
+  theme_minimal()
 ```
 
-## Wykres zachorowan w ciagu kolejnych lat w Polsce
+## Wykres zachorowan w ciagu kolejnych lat we wszystkich krajach
 ```{r linear_plot_country}
 tbt <- group_by(mydf, country, year) %>% 
   summarize(sum=sum(sum))
 tbt[is.na(tbt)] <- 0
-tbt <- filter(tbt, country=="Poland")
 
+#tbt <- filter(tbt, country=="Poland")
 
-ggplot(data = tbt, aes(x = year)) +
-  geom_line(aes(y=sum), color="red")
+plot <- ggplot(data = tbt, aes(x = year, y=sum/1000000, group=country)) + 
+  geom_line(aes(color=country), show.legend = FALSE) +
+  labs(x="Rok", y="Suma zachorowan [mln]", color="Kraj") +
+  theme(legend.position = 'none')
+  
 
-
+ggplotly(plot)
 ```
 
 

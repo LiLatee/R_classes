@@ -2,6 +2,7 @@ base
 EDAWR
 dplyr
 ggplot2
+plotly
 tidyverse
 tibble
 tidyr
