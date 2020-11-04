@@ -1,0 +1,62 @@
+---
+title: "Zadanie 1"
+author: "Marcin Hradowicz"
+date: "04.11.2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+## Biblioteki
+```{r install_packages, cache=TRUE, message=FALSE, warning=FALSE, results=FALSE}
+devtools::install_github("rstudio/EDAWR")
+# install.packages("plotly",repos = "http://cran.us.r-project.org")
+```
+
+
+
+```{r setup, message=FALSE, warning=FALSE, results=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+
+#library(EDAWR)
+#library(dplyr)
+library(ggplot2)
+#library(plotly)
+#library(tidyverse)
+```
+
+## Wczytanie danych
+```{r load_data, cache=TRUE, results=TRUE}
+data("diamonds")
+mydf <- diamonds
+knitr::kable(head(mydf))
+
+```
+
+## Histogram zmiennej <em>depth</em>
+```{r depth_hist}
+library(ggplot2)
+ggplot(mydf, aes(x=depth)) +
+  geom_histogram(binwidth = 0.2) + 
+  xlim(55, 70)
+
+```
+
+## Liczba zachorowan z podzialem na plec
+```{r number_of_diseases, cache=TRUE}
+
+   
+```
+
+## Wykres zachorowan w ciagu kolejnych lat
+```{r linear_plot}
+
+```
+
+## Wykres zachorowan w ciagu kolejnych lat we wszystkich krajach
+```{r linear_plot_country}
+
+```
+
+
