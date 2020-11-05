@@ -20,7 +20,7 @@ devtools::install_github("rstudio/EDAWR")
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 
 #library(EDAWR)
-#library(dplyr)
+library(dplyr)
 library(ggplot2)
 #library(plotly)
 #library(tidyverse)
@@ -33,30 +33,76 @@ mydf <- diamonds
 knitr::kable(head(mydf))
 
 ```
+## Zmienna<em>depth</em>
 
-## Histogram zmiennej <em>depth</em>
+### Histogram zmiennej <em>depth</em>
 ```{r depth_hist}
-library(ggplot2)
 ggplot(mydf, aes(x=depth)) +
   geom_histogram(binwidth = 0.2) + 
-  xlim(55, 70)
+  xlim(55, 70) +
+  labs(x="Price", y="Liczebnosc")
 
 ```
 
-## Liczba zachorowan z podzialem na plec
-```{r number_of_diseases, cache=TRUE}
-
+## Wplyw zmiennej <em>cut</em> na histogram 
+#### za pomoca koloru
+```{r depth_cut_impact_color}
+ggplot(mydf, aes(x=depth, color=cut)) +
+  geom_histogram(binwidth = 0.2) + 
+  xlim(55, 70) +
+  labs(x="Price", y="Liczebnosc")
    
 ```
 
-## Wykres zachorowan w ciagu kolejnych lat
-```{r linear_plot}
+#### za pomoca paneli
+```{r depth_cut_impact_panel}
+ggplot(mydf, aes(x=depth)) +
+  geom_histogram(binwidth = 0.2) + 
+  xlim(55, 70) +
+  facet_grid(. ~ cut, labeller = label_both) +
+  labs(x="Price", y="Liczebnosc")
+   
+```
+
+## Zmienna <em>price</em>
+
+### Histogram zmiennej <em>price</em>
+```{r price_hist}
+ggplot(mydf, aes(x=price)) +
+  geom_histogram(binwidth = 500) +
+  labs(x="Price", y="Liczebnosc")
 
 ```
 
-## Wykres zachorowan w ciagu kolejnych lat we wszystkich krajach
-```{r linear_plot_country}
+### Wplyw zmiennej <em>cut</em> na histogram 
+#### za pomoca koloru
+```{r price_cut_impact_color}
+ggplot(mydf, aes(x=price, fill=cut)) +
+  geom_histogram(binwidth = 1000) +
+  labs(x="Price", y="Liczebnosc")
 
 ```
 
+#### za pomoca paneli
+```{r price_cut_impact_panel}
+ggplot(mydf, aes(x=price)) +
+  geom_histogram(binwidth = 300) +
+  facet_grid(. ~ cut, labeller = label_both) +
+  scale_x_continuous(breaks = c(0, 10000, 20000)) +
+  labs(x="Price", y="Liczebnosc")
+  
+   
+```
 
+## Relacja miedzy zmienna <em>carat</em> i <em>price</em>
+
+```{r carat_price_relation}
+mydf_mod <- mutate(mydf, group_cut=cut(carat, breaks=c(-Inf, 1, 2, 3, 4, Inf), labels=c("<1", "[1-2)", "[2-3)", "[3-4)", ">=4")))
+
+ggplot(data=mydf_mod, aes(x=carat, y=price, color=group_cut)) +
+  geom_point() +
+  geom_smooth(method = 'gam', color='black') +
+  labs(x="Carat", y="Price")
+  
+   
+```
