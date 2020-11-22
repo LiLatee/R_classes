@@ -1,0 +1,304 @@
+---
+title: "UM_w_R_zad1"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r install_packages, cache=TRUE, message=FALSE, warning=FALSE, results=FALSE}
+install.packages("caret", repos="http://cran.us.r-project.org")
+install.packages("modeldata", repos="http://cran.us.r-project.org")
+install.packages("randomForest", repos="http://cran.us.r-project.org")
+install.packages("knn", repos="http://cran.us.r-project.org")
+install.packages("e1071", repos="http://cran.us.r-project.org")
+install.packages("kableExtra", repos="http://cran.us.r-project.org")
+install.packages("Metrics", repos="http://cran.us.r-project.org")
+install.packages("AppliedPredictiveModeling", repos="http://cran.us.r-project.org")
+install.packages("ggpubr", repos="http://cran.us.r-project.org")
+```
+
+```{r libraries, message=FALSE, warning=FALSE, results=FALSE}
+library(caret)
+library(modeldata)
+library(kableExtra)
+library(dplyr)
+library(cowplot)
+library(Metrics)
+library(AppliedPredictiveModeling)
+library(ggpubr)
+```
+
+# Część 1
+## Załaduj zbiór danych <i>churn</i>
+```{r load_dataset, cache=TRUE}
+data(mlc_churn)
+churnData <- data.frame(mlc_churn)
+kbl(head(churnData))  %>%
+  kable_material(c("hover"), full_width=F)
+print(paste("Liczba kolumn: ", ncol(churnData)))
+print(paste("Liczba wierszy: ", nrow(churnData)))
+print("Kolumny:")
+print(colnames(churnData))
+
+nums <- unlist(lapply(churnData, is.numeric))
+namesOfCategoricalCols <- c("state", "area_code", "international_plan", "voice_mail_plan", "churn")
+print("Cechy kategorialne: ")
+print(namesOfCategoricalCols)
+
+namesOfNumericalCols <- setdiff(colnames(churnData), namesOfCategoricalCols)
+print("Cechy liczbowe: ")
+print(namesOfNumericalCols)
+
+kbl(summary(churnData)) %>%
+  kable_material(c("hover"), full_width=F)
+
+```
+Kolumną decyzyjną jest <i>churn</i> przyjmująca wartości "yes" lub "no".
+
+
+## Podziel ten zbiór na uczący i testowy (75% w zbiorze uczącym)
+```{r split_dataset}
+set.seed(42)
+inTraining <- createDataPartition(
+  y = churnData$churn,
+  p = 0.75,
+  list = FALSE,
+)
+
+training <- churnData[inTraining,]
+print(paste("Liczba wierszy zbioru treningowego: ", nrow(training)))
+testing <- churnData[-inTraining,]
+print(paste("Liczba wierszy zbioru tetowego: ", nrow(testing)))
+
+```
+
+## Przetestuj dwa algorytmy klasyfikacyjne
+
+### Random forest
+```{r test_tree}
+ctrl <- trainControl(method = "none",
+                     classProbs=TRUE)
+
+rf_m <- train(churn ~ .,
+             data=training,
+             method="rf",
+             trControl = ctrl,
+             metric = "ROC",
+             ntree=10)
+print(rf_m)
+
+y_test <- predict(rf_m, newdata=testing)
+cm <- confusionMatrix(data = y_test, testing$churn)
+print(cm)
+
+```
+Parametr <i>mtry=sqrt(liczba_cech_zbioru)</i>, jest liczbą losowych cech branych pod uwagę w każdym węźle.
+
+### knn
+```{r test_knn}
+knn_m <- train(churn ~ .,
+             data=training,
+             method="knn",
+             metric = "ROC",
+             trControl = ctrl)
+print(knn_m)
+
+y_test <- predict(knn_m, newdata=testing)
+cm <- confusionMatrix(data = y_test, testing$churn)
+print(cm)
+
+```
+Parametr <i>k=1</i>, jest liczbą sprawdzanych sąsiadów.
+
+
+## Zastanów się czy warto wstępnie przetworzyć zbiór
+Na algorytm <i>Random Forest</i> nie ma wpływu, czy zastosujemy jakiś rodzaj standaryzacji/normalizacji danych czy nie.
+Jednak algorytm <i>knn</i> jest bardzo czuły na zakres wartości cech. Bez zastosowania standaryzacji/normalizacji, może się okazać, że jedna z cech całkowicie będzie determinowała wybór klasy.
+Większość kolumn w zbiorze to cechy liczbowe. Tylko kilka z nich to cechy kategorialne. Dla algorytmu knn warto zastosować np. normalizację cech liczbowych. Dodatkowo należy odwzorować pozostałe cechy kategorialne na liczby.
+Jak widać, także na poniższym kodzie w zbiorze nie ma żadnych brakujących wartości, więc nie trzeba się martwić w jaki sposób sobie z nimi radzić.
+Ogólnie zawsze warto jest przyjrzeć się danym i dokonać pewnego wstępnego przetwarzania. Czasami wybór tylko pewnych cech zamiasy użycia wszystkich może pomóc.
+```{r ETL}
+rowsWithNA <- which(is.na(churnData))
+print("Liczba wierszy z brakującymi wartościami: ")
+print(rowsWithNA)
+
+```
+
+### <i>knn</i> po standaryzacji
+```{r test_knn2}
+fit <- train(churn ~ .,
+             data = training,
+             method = "knn",
+             preProc = c("center", "scale"),
+             trControl = ctrl)
+
+print(fit)
+
+y_test <- predict(fit, newdata=testing)
+cm <- confusionMatrix(data = y_test, testing$churn)
+print(cm)
+```
+Jak widać w tym przypadku same zostosowanie standaryzacji wartości cech nie zmieniło wyników.
+
+## Określ przestrzeń przeszukiwania parametrów
+### <i>Random Forest</i>
+```{r gridsearch_rf}
+rfGrid <- expand.grid(mtry = 2:25)
+gridCtrl <- trainControl(
+    method = "repeatedcv",
+    number = 2,
+    repeats = 5,
+    summaryFunction = twoClassSummary,
+    classProbs = TRUE)
+
+rf_m <- train(churn ~ .,
+             data=training,
+             method="rf",
+             trControl = gridCtrl,
+             metric = "ROC",
+             tuneGrid = rfGrid,
+             ntree=10)
+print(rf_m)
+
+y_test <- predict(rf_m, newdata=testing)
+cm <- confusionMatrix(data = y_test, testing$churn)
+print(cm)
+
+```
+Jak widać <i>Random Forest</i> daje najlepsze wyniki trafności dla jak największego <i>mtry</i>. Jednak wartości powyżej 19 nie mają sensu, ponieważ nie mamy więcej cech. W przypadku tego parametru domyślne ustawienia przeszukiwania dają porównywalne wyniki.
+
+### <i>knn</i>
+```{r gridsearch_knn}
+knnGrid <- expand.grid(k = 1:20)
+
+knn_m <- train(churn ~ .,
+             data=training,
+             method="knn",
+             trControl = gridCtrl,
+             metric = "ROC",
+             tuneGrid = knnGrid)
+print(knn_m)
+
+y_test <- predict(knn_m, newdata=testing)
+cm <- confusionMatrix(data = y_test, testing$churn)
+print(cm)
+```
+
+## Porównaj algorytmy za pomocą wykresu
+```{r chart}
+resamps <- resamples(list(RF = rf_m,
+                          KNN = knn_m))
+
+theme1 <- trellis.par.get()
+theme1$plot.symbol$col = rgb(.2, .2, .2, .4)
+theme1$plot.symbol$pch = 16
+theme1$plot.line$col = rgb(1, 0, 0, .7)
+theme1$plot.line$lwd <- 2
+trellis.par.set(theme1)
+bwplot(resamps, layout = c(3, 1))
+
+trellis.par.set(caretTheme())
+p1 <- dotplot(resamps, metric = "ROC")
+p2 <- dotplot(resamps, metric = "Sens")
+p3 <- dotplot(resamps, metric = "Spec")
+
+
+plot_grid(p1, p2, p3, labels=c("ROC", "Sensitivity", "Specificity"), ncol=3, nrow=1)
+
+```
+Z wykresów można stwierdzić, że algorytm <i>Random Forest</i> radzi sobie odrobinę lepiej od <i>knn</i>.
+We wszystkich 3 miarachch daje lepsze wyniki. Jednak różnica w <i>Specificity</i> jest marginalna.
+
+# Część 2
+## Załaduj zbiór diamonds
+```{r load_dataset2}
+data("diamonds")
+diam <- diamonds
+
+print(paste("Liczba kolumn: ", ncol(diam)))
+print(paste("Liczba wierszy: ", nrow(diam)))
+
+print("Kolumny:")
+print(colnames(diam))
+
+featuresNames <- setdiff(colnames(diam), c("price"))
+
+rowsWithNA <- which(is.na(diam))
+print("Liczba wierszy z brakującymi wartościami: ")
+print(rowsWithNA)
+
+kbl(head(diam))  %>%
+  kable_material(c("hover"), full_width=F)
+```
+
+## Podziel zbiór na uczący i testowy w proporcjach 70%-30%
+```{r split_dataset2}
+set.seed(42)
+inTraining <- createDataPartition(y=diam$price,
+                                  p=0.7,
+                                  list=F)
+training <- diam[inTraining,]
+print(paste("Liczba wierszy zbioru treningowego: ", nrow(training)))
+testing <- diam[-inTraining,]
+print(paste("Liczba wierszy zbioru tetowego: ", nrow(testing)))
+```
+
+## Stwórz model regresyjny, który przewidzi cenę diamentu na podstawie wartości pozostałych parametrów
+Wykorzystany został algorytm regresji liniowej.
+```{r create_model}
+ctrl <- trainControl(method = "repeatedcv",
+                     number=2,
+                     repeats = 5)
+lrGrid <- expand.grid(intercept = c(TRUE, FALSE))
+
+lr_m <- train(price ~ .,
+             data=training,
+             method="lm",
+             preProcess = c("center", "scale"),
+             trControl = ctrl,
+             tuneGrid = lrGrid,
+             metric = "RMSE")
+print(lr_m)
+
+y_pred <- predict(lr_m, newdata=testing)
+y_test <- testing[["price"]]
+rmse(y_test, y_pred)
+```
+
+## W trakcie pracy przypatrz się wpływowi różnych zmiennych na cenę diamentu
+### Cechy liczbowe
+```{r price}
+featurePlot(x = diam[, c("carat", "depth", "table", "x", "y", "z")],
+            y = diam$price,
+            plot = "scatter",
+            type = c("p", "scatter"),
+            layout = c(3, 2))
+
+```
+<br>Na powyższych wykresach zobrazowano jak cechy liczbowe wpływają na cenę diamentów.
+Na wykresie przedsiawiającym zmienną "carat" widać, że im większa wartość zmiennej tym większa cena diamentu.
+Podobną zależność widać z cechą "x", jednak wpływa ona trochę mniej na cenę niż "carat".
+### Cechy kategorialne
+```{r price2}
+
+color <- ggplot(diam, aes(x=color, y=price)) +
+  geom_col()
+  
+cut <- ggplot(diam, aes(x=cut, y=price)) +
+  geom_col()
+
+clarity <- ggplot(diam, aes(x=clarity, y=price)) +
+  geom_col()
+
+together <- ggarrange(p1, cut, clarity, ncol = 1, nrow = 3, common.legend = TRUE, label.x=1)
+
+ print(together)
+```
+<br>Na wykresach przedstawiających wpływ cech kategorialnych widać więcej zależności względem ceny.
+Wartość diamentu wzrasta wraz z jakością cięcia (cecha "cut").
+Na wykresach przedstawiających zależność od zmiennych "color" oraz "clarity" także możemy stwierdzić, które wartości powodują wzrost ceny diamentu.
