@@ -99,7 +99,7 @@ print(cm)
 ```
 Parametr <i>mtry=sqrt(liczba_cech_zbioru)</i>, jest liczbą losowych cech branych pod uwagę w każdym węźle.
 
-### knn
+### <i>knn</i>
 ```{r test_knn}
 knn_m <- train(churn ~ .,
              data=training,
@@ -119,9 +119,9 @@ Parametr <i>k=1</i>, jest liczbą sprawdzanych sąsiadów.
 ## Zastanów się czy warto wstępnie przetworzyć zbiór
 Na algorytm <i>Random Forest</i> nie ma wpływu, czy zastosujemy jakiś rodzaj standaryzacji/normalizacji danych czy nie.
 Jednak algorytm <i>knn</i> jest bardzo czuły na zakres wartości cech. Bez zastosowania standaryzacji/normalizacji, może się okazać, że jedna z cech całkowicie będzie determinowała wybór klasy.
-Większość kolumn w zbiorze to cechy liczbowe. Tylko kilka z nich to cechy kategorialne. Dla algorytmu knn warto zastosować np. normalizację cech liczbowych. Dodatkowo należy odwzorować pozostałe cechy kategorialne na liczby.
+Większość kolumn w zbiorze to cechy liczbowe. Tylko kilka z nich to cechy kategorialne. Dla algorytmu <i>knn</i> warto zastosować np. normalizację cech liczbowych. Dodatkowo należy odwzorować pozostałe cechy kategorialne na liczby.
 Jak widać, także na poniższym kodzie w zbiorze nie ma żadnych brakujących wartości, więc nie trzeba się martwić w jaki sposób sobie z nimi radzić.
-Ogólnie zawsze warto jest przyjrzeć się danym i dokonać pewnego wstępnego przetwarzania. Czasami wybór tylko pewnych cech zamiasy użycia wszystkich może pomóc.
+Ogólnie zawsze warto jest przyjrzeć się danym i dokonać pewnego wstępnego przetwarzania. Czasami wybór tylko pewnych cech zamiast użycia wszystkich może pomóc.
 ```{r ETL}
 rowsWithNA <- which(is.na(churnData))
 print("Liczba wierszy z brakującymi wartościami: ")
@@ -146,6 +146,13 @@ print(cm)
 Jak widać w tym przypadku same zostosowanie standaryzacji wartości cech nie zmieniło wyników.
 
 ## Określ przestrzeń przeszukiwania parametrów
+Dla algorytmu <i>Random Forest</i> przeszukujemy zakres wartości parametru <i>mtry</i> 
+odpowiedzialnego za liczbę atrybutów branych pod uwagę w każdym węźle drzewa.
+<br>
+W algorytmie <i>knn</i> parametrem jest <i>k</i> będące liczbą sąsiadów zliczanych w celu znalezienia klasy decyzyjnej.
+<br>
+Warto wspomnieć, że przeszukiwanie parametrów nie zawsze wiąże się tylko z zakresem liczbowym.
+Może być to także tablicy konkretnych liczb lub ciągów znaków determinujących typ danego algorytmu (np. wybór jądra w algorytmie <i>SVM</i>).
 ### <i>Random Forest</i>
 ```{r gridsearch_rf}
 rfGrid <- expand.grid(mtry = 2:25)
@@ -211,8 +218,8 @@ p3 <- dotplot(resamps, metric = "Spec")
 plot_grid(p1, p2, p3, labels=c("ROC", "Sensitivity", "Specificity"), ncol=3, nrow=1)
 
 ```
-Z wykresów można stwierdzić, że algorytm <i>Random Forest</i> radzi sobie odrobinę lepiej od <i>knn</i>.
-We wszystkich 3 miarachch daje lepsze wyniki. Jednak różnica w <i>Specificity</i> jest marginalna.
+<br>Z wykresów można stwierdzić, że algorytm <i>Random Forest</i> radzi sobie odrobinę lepiej od <i>knn</i>.
+W <i>ROC</i> oraz <i>Sensitivity</i> radzi sobie zauważalnie lepiej. W <i>Specificity</i> osiąga odrobinę gorsze wyniki.
 
 # Część 2
 ## Załaduj zbiór diamonds
@@ -267,8 +274,11 @@ print(lr_m)
 
 y_pred <- predict(lr_m, newdata=testing)
 y_test <- testing[["price"]]
-rmse(y_test, y_pred)
+
+print(paste("Średnia cena to $", round(mean(diam$price), digits=2), " odchylenie standardowe to $", round(sd(diam$price), digits=2), sep=""))
+print(paste("Błąd RMSE to ", round(rmse(y_test, y_pred), digits=2), sep=""))
 ```
+Jak widać błąd RMSE jest całkiem duży biorąc pod uwagę zakres cen diamentów. Prawdopodobnie wstępne przetworzenie danych, wybór atrybutów bazując na wykresach przedstawionych w kolejnym punkcie mogłyby poprawić wyniki.
 
 ## W trakcie pracy przypatrz się wpływowi różnych zmiennych na cenę diamentu
 ### Cechy liczbowe
@@ -281,8 +291,9 @@ featurePlot(x = diam[, c("carat", "depth", "table", "x", "y", "z")],
 
 ```
 <br>Na powyższych wykresach zobrazowano jak cechy liczbowe wpływają na cenę diamentów.
-Na wykresie przedsiawiającym zmienną "carat" widać, że im większa wartość zmiennej tym większa cena diamentu.
+Na wykresie przedstawiającym zmienną "carat" widać, że im większa wartość zmiennej tym większa cena diamentu.
 Podobną zależność widać z cechą "x", jednak wpływa ona trochę mniej na cenę niż "carat".
+
 ### Cechy kategorialne
 ```{r price2}
 
@@ -295,10 +306,10 @@ cut <- ggplot(diam, aes(x=cut, y=price)) +
 clarity <- ggplot(diam, aes(x=clarity, y=price)) +
   geom_col()
 
-together <- ggarrange(p1, cut, clarity, ncol = 1, nrow = 3, common.legend = TRUE, label.x=1)
+together <- ggarrange(color, cut, clarity, ncol = 1, nrow = 3, common.legend = TRUE, label.x=1)
 
  print(together)
 ```
 <br>Na wykresach przedstawiających wpływ cech kategorialnych widać więcej zależności względem ceny.
 Wartość diamentu wzrasta wraz z jakością cięcia (cecha "cut").
-Na wykresach przedstawiających zależność od zmiennych "color" oraz "clarity" także możemy stwierdzić, które wartości powodują wzrost ceny diamentu.
+Na wykresach zmiennych "color" oraz "clarity" także możemy stwierdzić, które wartości powodują wzrost ceny diamentu.
