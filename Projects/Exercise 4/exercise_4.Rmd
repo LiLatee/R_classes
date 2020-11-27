@@ -1,0 +1,200 @@
+---
+title: "Zadanie 4"
+author: "Marcin Hradowicz"
+date: "27 11 2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Instalacja bibliotek
+```{r install_packages, cache=TRUE, message=FALSE, warning=FALSE, results=FALSE}
+install.packages("fpc", repos="http://cran.us.r-project.org")
+install.packages("ggplot2", repos="http://cran.us.r-project.org")
+install.packages("ggpubr", repos="http://cran.us.r-project.org")
+install.packages("kableExtra", repos="http://cran.us.r-project.org")
+# install.packages("factoextra", repos="https://cran.r-project.org/")
+# install.packages("NbClust", repos="https://github.com/cran/NbClust")
+
+```
+## Wczytanie bibliotek
+```{r libraries, message=FALSE, warning=FALSE, results=FALSE}
+library(fpc)
+library(factoextra)
+library(ggplot2)
+library(NbClust)
+library(ggpubr)
+library(kableExtra)
+library(dbscan)
+library(cluster)
+
+printConfMatrix <- function(groundTruthLables, resultLabels)
+{
+  confMatrix <- knitr::kable(table(groundTruthLables, resultLabels), row.names = c(1,2,3,4,5,6), align=rep('c', 5)) %>%
+  kable_paper(c("hover"), full_width=F) %>%
+  column_spec(1, bold = T, border_right = T)
+
+  confMatrix
+}
+
+# printConfMatrix <- function(groundTruthLables, resultLabels)
+# {
+#   confMatrix <- knitr::kable(table(groundTruthLables, resultLabels), row.names = c(1,2,3,4,5,6), align=rep('c', 5)) %>%
+#   kable_paper(c("hover"), full_width=F) %>%
+#   column_spec(1, bold = T, border_right = T) %>%
+#   row_spec(1, bold = T)
+# 
+#   print(confMatrix)
+# }
+```
+
+
+## Wczytanie danych
+```{r load_data}
+set.seed(23)
+face <- rFace(1000, p=2, dMoNo=3)
+df = data.frame(x=face[,1], y=face[,2])
+knitr::kable(head(face))
+labels = as.integer(attr(face,"grouping"))
+
+groundTruthPlot <- ggplot(df, aes(x, y, color=factor(labels))) +
+    geom_point() +
+    labs(color="Grupa") +
+    theme_bw()
+
+```
+## Testowanie różnych algorytmów
+
+### k-means
+```{r, kmeans}
+kmeans.res <- eclust(df, "kmeans", k=length(unique(labels)), nstart=25, graph=FALSE)
+df_temp = data.frame(x=kmeans.res$data$x, y=kmeans.res$data$y, predicted=kmeans.res$cluster)
+
+kmeansPlot <- ggplot(df_temp, aes(x, y, color=factor(predicted))) +
+    geom_point() +
+    labs(color="Grupa") +
+    theme_bw()
+
+
+kmeansSil <- fviz_silhouette(kmeans.res, palette = "jco", ggtheme = theme_classic(), print.summary = F)
+
+together <- ggarrange(kmeansPlot, kmeansSil, ncol = 2, nrow = 1, common.legend = TRUE, labels = c("k-means", ""), label.x = 0, label.y= 1.05, hjust=0)
+print(together)
+
+printConfMatrix(labels, kmeans.res$cluster)
+
+```
+### k-medoids
+```{r, kmedoids}
+kmedoids.res <- eclust(df, "pam", k=length(unique(labels)), graph=FALSE)
+df_temp = data.frame(x=kmedoids.res$data$x, y=kmedoids.res$data$y, predicted=kmedoids.res$cluster)
+
+kmedoidsPlot <- ggplot(df_temp, aes(x, y, color=factor(predicted))) +
+    geom_point() +
+    labs(color="Grupa") +
+    theme_bw()
+
+kmedoidsSil <- fviz_silhouette(kmedoids.res, palette = "jco", ggtheme = theme_classic(), print.summary = F)
+
+together <- ggarrange(kmedoidsPlot, kmedoidsSil, ncol = 2, nrow = 1, common.legend = TRUE, labels = c("k-medoids", ""), label.x = 0, label.y= 1.05, hjust=0)
+print(together)
+
+printConfMatrix(labels, kmedoids.res$cluster)
+```
+
+### AHC
+
+## Porównanie dostępnych metryk odległości
+```{r, ahc_metrics, fig.width=10, fig.height=15}
+
+metrics = c("euclidean", "manhattan", "maximum", "canberra", "binary", "minkowski")
+plots <- list()
+for (i in 1:length(metrics))
+{
+  print(i)
+  ahc.res <- eclust(df, "hclust", k=length(unique(labels)), hc_metric = metrics[[i]], hc_method = "ward.D2", graph=FALSE)
+  df_temp = data.frame(x=ahc.res$data$x, y=ahc.res$data$y, predicted=ahc.res$cluster)
+
+  plot <- ggplot(df_temp, aes(x, y, color=factor(predicted))) +
+    geom_point() +
+    labs(color="Grupa") +
+    theme_bw()
+  
+  plots[[i]] <- plot
+}
+# AHCPlot <- ggplot(df_temp, aes(x, y, color=factor(predicted))) +
+#     geom_point() +
+#     labs(color="Grupa") +
+#     theme_bw()
+# print(AHCPlot)
+
+# AHCsil <- fviz_silhouette(ahc.res, palette = "jco", ggtheme = theme_classic(), print.summary = F)
+
+# dend <- fviz_dend(ahc.res, show_labels = F, palette = "jco", as.ggplot = T)
+
+# together <- ggarrange(AHCPlot, AHCsil, ncol = 3, nrow = 1, common.legend = TRUE, labels = c("AHC", ""), label.x = 0, label.y= 1.05, hjust=0)
+# print(together)
+
+together <- ggarrange(plots[[1]], plots[[2]], plots[[3]], plots[[4]], plots[[5]], plots[[6]], ncol = 2, nrow = 3, common.legend = TRUE, labels = metrics, label.x = 0, label.y= 1.05, hjust=0)
+print(together)
+
+printConfMatrix(labels, ahc.res$cluster)
+```
+## Wyniki AHC z metryką odległosci <i>euclidean</i>
+```{r, ahc_euclidean, fig.width=15}
+
+AHCPlot <- ggplot(df_temp, aes(x, y, color=factor(predicted))) +
+    geom_point() +
+    labs(color="Grupa") +
+    theme_bw()
+print(AHCPlot)
+
+AHCsil <- fviz_silhouette(ahc.res, palette = "jco", ggtheme = theme_classic(), print.summary = F)
+
+dend <- fviz_dend(ahc.res, show_labels = F, palette = "jco", as.ggplot = T)
+
+together <- ggarrange(AHCPlot, dend, AHCsil, ncol = 3, nrow = 1, common.legend = TRUE, labels = c("AHC", "",""), label.x = 0, label.y= 1.05, hjust=0)
+print(together)
+
+printConfMatrix(labels, ahc.res$cluster)
+```
+
+### DBSCAN
+```{r, dbscan}
+dbscan.res <- fpc::dbscan(df, eps=0.15, MinPts=5)
+df_temp = data.frame(x=df$x, y=df$y, predicted=dbscan.res$cluster)
+
+dbscanPlot <- ggplot(df_temp, aes(x, y, color=factor(predicted))) +
+    geom_point() +
+    labs(color="Grupa") +
+    theme_bw()
+  
+  
+db_clusters_vector <- dbscan.res[['cluster']]
+db_distances <- dist(df)
+db_silhouette <- silhouette(db_clusters_vector, db_distances)
+dbscanSil <- fviz_silhouette(db_silhouette, palette = "jco", ggtheme = theme_classic(), print.summary = F)
+
+together <- ggarrange(dbscanPlot, dbscanSil, ncol = 2, nrow = 1, common.legend = TRUE, labels = c("DBSCAN", ""), label.x = 0, label.y= 1.05, hjust=0)
+print(together)
+
+printConfMatrix(labels, dbscan.res$cluster)
+```
+
+<!-- ## Porównanie wykresów -->
+<!-- ```{r, all_algs, fig.height=20, fig.width=10} -->
+<!-- together <- ggarrange(kmeansPlot, kmeansSil, kmedoidsPlot, kmedoidsSil, AHCPlot, AHCsil, dbscanPlot, dbscanSil, groundTruthPlot, ncol = 2, nrow = 5, common.legend = TRUE, labels = c("k-means", "", "k-medoids", "","AHC", "", "DBSCAN", "", "Ground Truth"), label.x = 0, label.y= 1.05, hjust=0) -->
+
+<!-- # labels = c("Ground Truth", "k-means", "k-medoids", "AHC", "DBSCAN"), label.x = 0.2, label.y= 1.1, hjust=-0.5 -->
+<!-- print(together) -->
+<!-- ``` -->
+
+```{r, compare}
+ 
+
+```
