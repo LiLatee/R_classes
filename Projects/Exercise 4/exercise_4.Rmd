@@ -9,7 +9,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 ```
 
 ## Instalacja bibliotek
@@ -35,22 +35,13 @@ library(cluster)
 
 printConfMatrix <- function(groundTruthLables, resultLabels)
 {
-  confMatrix <- knitr::kable(table(groundTruthLables, resultLabels), row.names = c(1,2,3,4,5,6), align=rep('c', 5)) %>%
+  confMatrix <- knitr::kable(table(groundTruthLables, resultLabels), row.names = c(1,2,3,4,5,6), align=rep('c', 5), ) %>%
   kable_paper(c("hover"), full_width=F) %>%
   column_spec(1, bold = T, border_right = T)
 
   confMatrix
 }
 
-# printConfMatrix <- function(groundTruthLables, resultLabels)
-# {
-#   confMatrix <- knitr::kable(table(groundTruthLables, resultLabels), row.names = c(1,2,3,4,5,6), align=rep('c', 5)) %>%
-#   kable_paper(c("hover"), full_width=F) %>%
-#   column_spec(1, bold = T, border_right = T) %>%
-#   row_spec(1, bold = T)
-# 
-#   print(confMatrix)
-# }
 ```
 
 
@@ -68,12 +59,17 @@ groundTruthPlot <- ggplot(df, aes(x, y, color=factor(labels))) +
     theme_bw()
 
 ```
+## Oryginalne dane
+```{r, original_data}
+print(groundTruthPlot)
+```
+
 ## Testowanie różnych algorytmów
 
 ### k-means
-```{r, kmeans}
-kmeans.res <- eclust(df, "kmeans", k=length(unique(labels)), nstart=25, graph=FALSE)
-df_temp = data.frame(x=kmeans.res$data$x, y=kmeans.res$data$y, predicted=kmeans.res$cluster)
+```{r, kmeans, fig.width=10}
+kmeans.res <- eclust(df, "kmeans", k=length(unique(labels)), nstart=25, graph=FALSE, stand=TRUE)
+df_temp = data.frame(x=kmeans.res$data[, 1], y=kmeans.res$data[, 2], predicted=kmeans.res$cluster)
 
 kmeansPlot <- ggplot(df_temp, aes(x, y, color=factor(predicted))) +
     geom_point() +
@@ -90,9 +86,9 @@ printConfMatrix(labels, kmeans.res$cluster)
 
 ```
 ### k-medoids
-```{r, kmedoids}
-kmedoids.res <- eclust(df, "pam", k=length(unique(labels)), graph=FALSE)
-df_temp = data.frame(x=kmedoids.res$data$x, y=kmedoids.res$data$y, predicted=kmedoids.res$cluster)
+```{r, kmedoids, fig.width=10}
+kmedoids.res <- eclust(df, "pam", k=length(unique(labels)), graph=FALSE, stand=TRUE)
+df_temp = data.frame(x=kmedoids.res$data[, 1], y=kmedoids.res$data[, 2], predicted=kmedoids.res$cluster)
 
 kmedoidsPlot <- ggplot(df_temp, aes(x, y, color=factor(predicted))) +
     geom_point() +
@@ -116,9 +112,8 @@ metrics = c("euclidean", "manhattan", "maximum", "canberra", "binary", "minkowsk
 plots <- list()
 for (i in 1:length(metrics))
 {
-  print(i)
-  ahc.res <- eclust(df, "hclust", k=length(unique(labels)), hc_metric = metrics[[i]], hc_method = "ward.D2", graph=FALSE)
-  df_temp = data.frame(x=ahc.res$data$x, y=ahc.res$data$y, predicted=ahc.res$cluster)
+  ahc.res <- eclust(df, "hclust", k=length(unique(labels)), hc_metric = metrics[[i]], hc_method = "ward.D2", graph=FALSE, stand=TRUE)
+  df_temp = data.frame(x=ahc.res$data[, 1], y=ahc.res$data[, 2], predicted=ahc.res$cluster)
 
   plot <- ggplot(df_temp, aes(x, y, color=factor(predicted))) +
     geom_point() +
@@ -127,32 +122,19 @@ for (i in 1:length(metrics))
   
   plots[[i]] <- plot
 }
-# AHCPlot <- ggplot(df_temp, aes(x, y, color=factor(predicted))) +
-#     geom_point() +
-#     labs(color="Grupa") +
-#     theme_bw()
-# print(AHCPlot)
-
-# AHCsil <- fviz_silhouette(ahc.res, palette = "jco", ggtheme = theme_classic(), print.summary = F)
-
-# dend <- fviz_dend(ahc.res, show_labels = F, palette = "jco", as.ggplot = T)
-
-# together <- ggarrange(AHCPlot, AHCsil, ncol = 3, nrow = 1, common.legend = TRUE, labels = c("AHC", ""), label.x = 0, label.y= 1.05, hjust=0)
-# print(together)
 
 together <- ggarrange(plots[[1]], plots[[2]], plots[[3]], plots[[4]], plots[[5]], plots[[6]], ncol = 2, nrow = 3, common.legend = TRUE, labels = metrics, label.x = 0, label.y= 1.05, hjust=0)
 print(together)
 
-printConfMatrix(labels, ahc.res$cluster)
 ```
-## Wyniki AHC z metryką odległosci <i>euclidean</i>
-```{r, ahc_euclidean, fig.width=15}
+
+## Wyniki AHC z metryką odległości <i>euclidean</i>
+```{r, ahc_euclidean, fig.width=15,fig.height=7}
 
 AHCPlot <- ggplot(df_temp, aes(x, y, color=factor(predicted))) +
     geom_point() +
     labs(color="Grupa") +
     theme_bw()
-print(AHCPlot)
 
 AHCsil <- fviz_silhouette(ahc.res, palette = "jco", ggtheme = theme_classic(), print.summary = F)
 
@@ -165,8 +147,8 @@ printConfMatrix(labels, ahc.res$cluster)
 ```
 
 ### DBSCAN
-```{r, dbscan}
-dbscan.res <- fpc::dbscan(df, eps=0.15, MinPts=5)
+```{r, dbscan, fig.width=10}
+dbscan.res <- fpc::dbscan(df, eps=0.25, MinPts=3, scale=TRUE)
 df_temp = data.frame(x=df$x, y=df$y, predicted=dbscan.res$cluster)
 
 dbscanPlot <- ggplot(df_temp, aes(x, y, color=factor(predicted))) +
