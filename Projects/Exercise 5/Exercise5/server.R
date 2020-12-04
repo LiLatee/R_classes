@@ -16,37 +16,42 @@ library(plotly)
 
 
 # Define server logic required to draw a histogram
-shinyServer(function(input, output) {
+shinyServer(function(input, output, session) {
     pokemonData <- reactive({
         temp <- read.table("pokemons.csv", head=TRUE, sep=',')
     })
     
-    # output$pokemonData <- c("a", "b")
+    output$selectPokemons <- renderUI({
+        selectInput(
+            inputId = "selectPokemons", 
+            label = "Wybierz Pokemony do porownania:",
+            choices = sort(pokemonData()[['name']]),
+            multiple = TRUE,
+            selected = c("Charmander", "Bulbasaur", "Squirtle"), 
+        )
+    })
     
-    # output$compPlot <- renderPlot({
-    #     
-    #     data <- reshape2::melt(pokemonData(), id.vars = "name", variable.name = "category", 
-    #                  measure.vars = c("hp", "attack", "defense", "speed", "sp_atk", "sp_def", "happiness", "exp"),
-    #                  value.name="scores")
-    #     ggplot(data, aes(x=category, y=scores, fill=name)) +
-    #         geom_col(position="dodge2") +
-    #         labs(y="Wartosc", x="Statystyki", fill="Nazwa pokemona")
-    # 
-    # })
+    output$checkboxes <- renderUI({
+        columns <- colnames(pokemonData())
+        wrongColumns = c("X", "name", "species","growth_rate", "type", "evolution")
+        columns <- setdiff(columns, wrongColumns)
+        checkboxGroupInput("checkboxes", label = "Wybierz statystyki", choices = columns, inline = T, selected = c("hp", "attack"))
+    })
     
-    output$selectPokemons <- renderUI({selectInput(
-        inputId = "selectPokemons", 
-        label = "Wybierz Pokemony do porownania:",
-        choices = sort(pokemonData()[['name']]),
-        multiple = TRUE,
-        selected = c("Charmander", "Bulbasaur", "Squirtle"), 
+    output$bg <- renderUI({
+        setBackgroundImage(src = input$bgURL, shinydashboard = F)
+    })
+    
+    observeEvent(input$defaultBG, {
+            # updateTextInput(session, "bgURL", value = "https://wallpapercave.com/wp/cqhO8rQ.jpg")
+        updateTextInput(session, "bgURL", value = "https://wallpapercave.com/wp/cqhO8rQ.jpg")
         
-    )})
+    })
     
     output$compPlot <- renderPlotly({
         temp <- filter(pokemonData(), name %in% input$selectPokemons )
         temp <- reshape2::melt(temp, id.vars = "name", variable.name = "category", 
-                               measure.vars = c("hp", "attack", "defense", "speed", "sp_atk", "sp_def", "happiness", "exp"),
+                               measure.vars = input$checkboxes,
                                value.name="scores")
         
         plot_ly(temp, x=temp$category, y=temp$scores, type="bar", name=temp$name)

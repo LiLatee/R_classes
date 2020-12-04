@@ -13,22 +13,39 @@ library(plotly)
 # Define UI for application that draws a histogram
 shinyUI(fluidPage(
     
+    uiOutput("bg"),
     
-    # Application title
     titlePanel('Zadanie dodatkowe - wersja 2 "Stworz Pokedexa w R"'),
     
-    # Sidebar with a slider input for number of bins
-    sidebarLayout(
-        sidebarPanel(
-            # textInput("bgURL",label = "Link do tla", value = "https://wallpapercave.com/wp/cqhO8rQ.jpg"),
-            uiOutput("selectPokemons"),
+    tabsetPanel(
+        type = "pills",
+        tabPanel(
+            "Porownywanie", 
+            sidebarLayout(
+                sidebarPanel(
+                    textInput("bgURL",label = "Podaj link do grafiki aby ustawic nowe tlo", value = "https://wallpapercave.com/wp/cqhO8rQ.jpg"),
+                    actionButton("defaultBG", "Przywroc domyslne tlo"),
+                    br(),
+                    br(),
+                    uiOutput("selectPokemons"),
+                    uiOutput("checkboxes")
+                ),
+                mainPanel(
+                    plotlyOutput("compPlot"),
+                )
+            ),
         ),
-        mainPanel(
-            plotlyOutput("compPlot"),
+        tabPanel(
+            "Tabela Pokemonow",
+            DT::dataTableOutput("compTable")
+        ),
+        tabPanel(
+            "Aktualnie wybrane Pokemony",
+            textInput("test", label="test", value = "test")
         )
-    ),
-    h3("Tabela wszystkich Pokemonow"),
-    DT::dataTableOutput("compTable"),
+    )
+
     
-    # setBackgroundImage(src = "https://wallpapercave.com/wp/cqhO8rQ.jpg", shinydashboard = FALSE),
+    
+    
 ))
