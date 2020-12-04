@@ -59,7 +59,11 @@ shinyUI(fluidPage(
                     uiOutput("selectPokemon3")
                 ),
             ),
-            uiOutput("imagesRow")
+            # uiOutput("imagesRow"),
+            uiOutput("statsRow"),
+            uiOutput("checkboxesHand"),
+            uiOutput("scorePlot"),
+            # div(plotlyOutput("scorePlot", width = 500), align="center")
             
         )
     )

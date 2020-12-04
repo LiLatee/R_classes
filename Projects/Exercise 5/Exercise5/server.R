@@ -25,7 +25,7 @@ shinyServer(function(input, output, session) {
         setBackgroundImage(src = input$bgURL, shinydashboard = F)
     })
     
-    # Tab - Porownywanie
+    ################################  Tab - Porownywanie ################################ 
     output$selectPokemons <- renderUI({
         selectInput(
             inputId = "selectPokemons", 
@@ -56,15 +56,16 @@ shinyServer(function(input, output, session) {
                                measure.vars = input$checkboxes,
                                value.name="scores")
         
-        plot_ly(temp, x=temp$category, y=temp$scores, type="bar", name=temp$name)
+        plot_ly(temp, x=temp$category, y=temp$scores, type="bar", name=temp$name) %>%
+            layout(paper_bgcolor='transparent')
     })
     
-    # Tab - Tabela
+    ################################  Tab - Tabela ################################ 
     output$compTable <- DT::renderDataTable({
         DT::datatable(pokemonData(), filter="top", escape=TRUE, selection='single')
         })
     
-    # Tab - Reka
+    ################################ Tab - Reka ################################ 
     output$selectPokemon1 <- renderUI({
         selectInput(
             inputId = "selectPokemon1", 
@@ -113,15 +114,15 @@ shinyServer(function(input, output, session) {
             if (url.exists(url1))
                 break
         }
-        
+
         for (source in sources)
         {
             url2 <- paste(source, tolower(input$selectPokemon2), ".png", sep="")
             if (url.exists(url2))
                 break
         }
-        
-        
+
+
         for (source in sources)
         {
             url3 <- paste(source, tolower(input$selectPokemon3), ".png", sep="")
@@ -148,5 +149,61 @@ shinyServer(function(input, output, session) {
         )
     })
 
+    output$statsRow <- renderUI({
+        temp <-reshape2::melt(pokemonData()[,-1], id.vars = "name", variable.name = "category",value.name="scores")
+        temp[temp == ""] <- "brak danych"
+        
+        pokemon1 <- filter(temp, name==input$selectPokemon1)
+        pokemon2 <- filter(temp, name==input$selectPokemon2)
+        pokemon3 <- filter(temp, name==input$selectPokemon3)
+        fluidRow(
+            column(
+                4,
+                align='center',
+                renderTable(pokemon1[,2:3])
+            ),
+            column(
+                4,
+                align='center',
+                renderTable(pokemon2[,2:3])
+            ),
+            column(
+                4,
+                align='center',
+                renderTable(pokemon3[,2:3])
+            ),
+            
+        )
+    })
 
+    output$checkboxesHand <- renderUI({
+        columns <- colnames(pokemonData())
+        wrongColumns = c("X", "name", "species","growth_rate", "type", "evolution")
+        columns <- setdiff(columns, wrongColumns)
+        checkboxGroupInput("checkboxesHand", label = "Wybierz statystyki", choices = columns, inline = T, selected = c("hp", "attack"))
+    })
+    
+    output$scorePlot <- renderUI({
+        temp <- filter(pokemonData(), name %in% c(input$selectPokemon1,input$selectPokemon2,input$selectPokemon3)) %>%
+            reshape2::melt(id.vars = "name", variable.name = "category", value.name="scores", measure.vars = input$checkboxesHand,)
+
+        plot1 <- plot_ly(temp, labels=temp$category, values=temp$scores, type="pie") %>%
+            layout(paper_bgcolor='transparent')
+        
+        plot2 <- plot_ly(temp, x=~category, y=~scores, type="bar", name=temp$name) %>%
+            layout(yaxis = list(title = 'Suma'), xaxis = list(title = 'Statystyka'), barmode = 'stack', paper_bgcolor='transparent')
+
+        
+        fluidRow(
+            column(
+                6,
+                renderPlotly(plot1)
+            ),
+            column(
+                6,
+                renderPlotly(plot2)
+            )
+        )
+
+    })
 })
