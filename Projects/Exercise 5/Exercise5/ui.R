@@ -41,7 +41,26 @@ shinyUI(fluidPage(
         ),
         tabPanel(
             "Aktualnie wybrane Pokemony",
-            textInput("test", label="test", value = "test")
+            helpText("UWAGA: Pierwsze ladowanie chwile trwa..."),
+            fluidRow(
+                column(
+                    4,
+                    align='center',
+                    uiOutput("selectPokemon1")
+                ),
+                column(
+                    4,
+                    align='center',
+                    uiOutput("selectPokemon2")
+                ),
+                column(
+                    4,
+                    align='center',
+                    uiOutput("selectPokemon3")
+                ),
+            ),
+            uiOutput("imagesRow")
+            
         )
     )
 
