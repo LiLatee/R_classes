@@ -59,7 +59,7 @@ shinyUI(fluidPage(
                     uiOutput("selectPokemon3")
                 ),
             ),
-            # uiOutput("imagesRow"),
+            uiOutput("imagesRow"),
             uiOutput("statsRow"),
             uiOutput("checkboxesHand"),
             uiOutput("scorePlot"),
